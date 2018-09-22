@@ -24,6 +24,7 @@ import java.util.TreeMap;
 import static com.were.douglas.codechallenge.Helper.aiList;
 import static com.were.douglas.codechallenge.Helper.elementList;
 import static com.were.douglas.codechallenge.Helper.libList;
+import static com.were.douglas.codechallenge.Helper.normalise;
 
 public class ChatActivity extends AppCompatActivity {
 
@@ -75,7 +76,7 @@ public class ChatActivity extends AppCompatActivity {
 
             System.out.println("AI : "+ aiList.get(ps).getIns() );
 
-                 dataPointsAi[ps] = new DataPoint(Double.parseDouble(aiList.get(ps).getIns()+""),Double.parseDouble( aiList.get(ps).getWv()+"")); // not sure but I think the second argument should be of type double
+                 dataPointsAi[ps] = new DataPoint(normalise(Double.parseDouble(aiList.get(ps).getIns()+"")),Double.parseDouble( aiList.get(ps).getWv()+"")); // not sure but I think the second argument should be of type double
 
         }
 
@@ -101,7 +102,7 @@ public class ChatActivity extends AppCompatActivity {
         graph.getViewport().setScalable(true);
         graph.getViewport().setScalableY(true);
 
-        
+
 
         graph.getViewport().setScrollable(true); // enables horizontal scrolling
         graph.getViewport().setScrollableY(true); // enables vertical scrolling

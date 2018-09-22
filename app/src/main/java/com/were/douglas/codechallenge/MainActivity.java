@@ -2,8 +2,11 @@ package com.were.douglas.codechallenge;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.AssetFileDescriptor;
+import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -12,6 +15,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Browser;
 import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v4.app.ActivityCompat;
@@ -33,9 +37,14 @@ import com.were.douglas.codechallenge.Model.Lib;
 
 import java.io.Console;
 import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,6 +52,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static com.were.douglas.codechallenge.Helper.FileListIntensity;
 import static com.were.douglas.codechallenge.Helper.aiList;
 import static com.were.douglas.codechallenge.Helper.elementList;
 import static com.were.douglas.codechallenge.Helper.libList;
@@ -55,16 +65,13 @@ public class MainActivity extends AppCompatActivity {
     ArrayAdapter adapter_name;
     ArrayAdapter adapter_spec;
     ArrayAdapter adapter_res;
-    Button browse, eval, chart;
+    Button browse, eval, chart,load;
     boolean loaded = false;
 
     public HashMap<Float, HashMap<String, Float>> DbHash = new HashMap<Float, HashMap<String, Float>>();
     public HashMap<String, Float> FoundHash = new HashMap<String, Float>();
 
     String[] nextLine;
-
-
-    List<Float> FileListIntensity = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
         adapter_spec = new ArrayAdapter(getApplicationContext(), R.layout.support_simple_spinner_dropdown_item);
         adapter_res = new ArrayAdapter(getApplicationContext(), R.layout.support_simple_spinner_dropdown_item);
         browse = (Button) findViewById(R.id.browse);
+        load = (Button) findViewById(R.id.load);
         eval = (Button) findViewById(R.id.evaluate);
         chart = (Button) findViewById(R.id.chart);
         if (!loaded) {
@@ -94,15 +102,21 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+        load.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                 //Intent filePickerIntent = new Intent(Intent.ACTION_PICK,android.provider.MediaStore.Files.getContentUri("external"));
+                Intent filePickerIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                filePickerIntent.setType("*/*");
+                startActivityForResult(filePickerIntent, 0);
 
+
+            }
+        });
 
         String filename;
 
         browse.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                /** Intent filePickerIntent = new Intent(Intent.ACTION_PICK,android.provider.MediaStore.Files.getContentUri("external"));
-                 // filePickerIntent.setType("*//*");
-               // startActivityForResult(filePickerIntent, 0); ****/
 
                  aiList = new ArrayList<Ai>();
                 Helper.fileHash = new HashMap<Float, Float>();
@@ -122,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
                             ai.setWv(Helper.roundDouble(Double.parseDouble(nextLine[0]+""),3));
                             ai.setIns(Double.parseDouble( val1+""));
                             aiList.add(ai);
-                            FileListIntensity.add(val1);
+                           FileListIntensity.add(val1);
                             Log.e("", " " + nextLine[0] + " " + (val1));
                             adapter_spec.add(Helper.round(Float.parseFloat(nextLine[0]), 3) + "\n-" + Float.parseFloat(nextLine[1]) + "");
                         } catch (Exception u) {
@@ -133,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    //  Toast.makeText(this, "The specified file was not found", Toast.LENGTH_SHORT).show();
+
                 }
                 lv2.setAdapter(adapter_spec);
                 Helper.min = Collections.min(FileListIntensity);
@@ -148,32 +162,24 @@ public class MainActivity extends AppCompatActivity {
         });
         eval.setOnClickListener(new View.OnClickListener() {
 
-
             public void onClick(View v) {
-                Helper.NewfileHash = new HashMap<Float, Float>();
+                Helper.NewfileHash = new HashMap<Float, Double>();
                 Helper.elementList = new ArrayList<Element>();
                 if (!loaded) {
                     Toast.makeText(MainActivity.this, "Please load the file first ", Toast.LENGTH_LONG).show();
                     return;
                 }
-
                 Iterator it = Helper.fileHash.entrySet().iterator();
                 while (it.hasNext()) {
                     Element el = new Element();
                     Map.Entry pair = (Map.Entry) it.next();
                     //   System.out.println(pair.getKey() + " = " + pair.getValue());
                     /*Lets normalise this value*/
-                    Float val3 = Helper.normalise(Float.parseFloat(pair.getValue() + ""));
+                    Double val3 = Helper.normalise(Double.parseDouble(pair.getValue() + ""));
                     Helper.NewfileHash.put(Float.parseFloat(pair.getKey() + ""), val3);
                     if (DbHash.containsKey(pair.getKey())) {
                         System.out.println("WaveLength: " + pair.getKey() + " spectrum value : " + val3 + " valued at " + DbHash.get(pair.getKey()));
                         FoundHash.putAll(DbHash.get(pair.getKey()));
-
-                        //  System.out.println("ANSWERS WV: " + pair.getKey() + " SPEC INT " + val3 + "  DB INT :"+ DbHash.get(pair.getKey()).get(val3));
-
-                        // DbHash.get(pair.getKey()).get(val3);
-                        //  Helper.ExistingHash.put(Double.parseDouble(pair.getKey()+""),Double.parseDouble(  DbHash.get(pair.getKey()).get(val3)+""));
-                        //   Helper.SpectrumHash.put(Double.parseDouble(pair.getKey()+""),Double.parseDouble( val3+""));
 
                         el.setAi(Double.parseDouble(val3 + ""));
                         el.setFreq(Double.parseDouble(pair.getKey() + ""));
@@ -200,7 +206,7 @@ public class MainActivity extends AppCompatActivity {
 
                 for (Element t : elementList) {
                     System.out.println(t.getName());
-                    adapter_res.add(t.getName() + "\n-" + t.getLib() + " " + (Double.parseDouble(t.getLib() + "") * 100) + "%");
+                    adapter_res.add(t.getName() + "\n-" + t.getLib() + " <" + (Double.parseDouble(t.getLib() + "") * 100) + "%>");
                 }
                 /**
                 Iterator itf = FoundHash.entrySet().iterator();
@@ -218,7 +224,9 @@ public class MainActivity extends AppCompatActivity {
 
 
         try {
-            File csvfile = new File(Environment.getExternalStorageDirectory() + "/LIBS_LINES.csv");
+
+           File csvfile = new File(Environment.getExternalStorageDirectory() + "/LIBS_LINES.csv");
+            //File csvfile = new File(getAssets().open("LIBS_LINES.csv"));
             System.out.println(Environment.getExternalStorageDirectory() + "/LIBS_LINES.csv");
             CSVReader reader = new CSVReader(new FileReader(csvfile.getAbsolutePath()));
 
@@ -241,11 +249,41 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "The specified file was not found", Toast.LENGTH_SHORT).show();
+            createFile();
         }
         lv.setAdapter(adapter_name);
+    }
+    public  void createFile(){
+
+        AssetManager am = this.getAssets();
+        AssetFileDescriptor afd = null;
+        try {
+            afd = am.openFd( "LIBS_LINES.csv");
+
+            // Create new file to copy into.
+            File file = new File(Environment.getExternalStorageDirectory() + java.io.File.separator + "LIBS_LINES.csv");
+            file.createNewFile();
+
+            copyFdToFile(afd.getFileDescriptor(), file);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
     }
-
+    public static void copyFdToFile(FileDescriptor src, File dst) throws IOException {
+        FileChannel inChannel = new FileInputStream(src).getChannel();
+        FileChannel outChannel = new FileOutputStream(dst).getChannel();
+        try {
+            inChannel.transferTo(0, inChannel.size(), outChannel);
+        } finally {
+            if (inChannel != null)
+                inChannel.close();
+            if (outChannel != null)
+                outChannel.close();
+        }
+    }
     String mediaPath;
     String filename;
     String filePath = "";
@@ -255,64 +293,61 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         Uri tempUri = null;
         File finalFile = null;
+
+        Uri uri = data.getData();
+        ContentResolver cr = this.getContentResolver();
+        String mime = cr.getType(uri);
+        Toast.makeText(this, " file"+ uri, Toast.LENGTH_LONG).show();
+        System.out.println("FILE: " + getFileName(uri) );
+
+        System.out.println("FILE: " + uri);
+
         try {
-            // When an Image is picked
-            if (requestCode == 0 && resultCode == RESULT_OK && null != data) {
-                // Get the Image from data
-                tempUri = data.getData();
-                String[] filePathColumn = {MediaStore.Images.Media.DATA};
-                Cursor cursor = MainActivity.this.getContentResolver().query(tempUri, filePathColumn, null, null, null);
-                assert cursor != null;
-                cursor.moveToFirst();
-                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                mediaPath = cursor.getString(columnIndex);
-                // Set the Image in ImageView for Previewing the Media
-                finalFile = new File(getRealPathFromURI(tempUri));
-                cursor.close();
-            } else {
-                Toast.makeText(this, "You haven't picked a file", Toast.LENGTH_LONG).show();
-            }
-        } catch (Exception e) {
-            Toast.makeText(this, "Something went wrong", Toast.LENGTH_LONG).show();
-        }
-        try {
-            filename = finalFile.getName();
+            filename = getFileName(uri);
         } catch (Exception p) {
-            Log.e("try catching new name ", filename);
+          //  Log.e("try catching new name ", filename);
         }
 
-        filePath = getApplicationContext().getFilesDir().getPath() + "/" + filename;
-        // File f = new File(filePath);
-        /*if (!f.exists())
-        {
-            try {
-                f.createNewFile();
-                util.copyFile(finalFile, f);
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        }*/
+        filePath = Environment.getExternalStorageDirectory() + "/" +  filename;
         try {
-            File csvfile = new File(filePath);
+            Helper.fileHash.clear();
+            aiList = new ArrayList<Ai>();
+            FileListIntensity.clear();
+            File csvfile = new File(Environment.getExternalStorageDirectory() + "/" +  filename);
             System.out.println(filePath);
             CSVReader reader = new CSVReader(new FileReader(csvfile.getAbsolutePath()));
 
             while ((nextLine = reader.readNext()) != null) {
                 // nextLine[] is an array of values from the line
                 //  System.out.println( " "+nextLine[0] + " "+ nextLine[1] + " "+ nextLine[2]);
-                DbHash.put(Float.parseFloat(nextLine[1]), new HashMap() {{
-                    put(nextLine[0], Float.parseFloat(nextLine[2]));
-                }});
-                //  map.put(.0F, new HashMap(){{put(.0F,0);}});
-                Log.e("", " " + nextLine[0] + " " + nextLine[1] + " " + nextLine[2]);
-                adapter_name.add(nextLine[0] + "\n" + nextLine[1]);
+                Ai ai = new Ai();
+                try {
+                    Float val1 = Float.parseFloat(nextLine[1]);
+                    Helper.fileHash.put(Helper.round(Float.parseFloat(nextLine[0]), 3), val1);
+
+                    ai.setWv(Helper.roundDouble(Double.parseDouble(nextLine[0]+""),3));
+                    ai.setIns(Double.parseDouble( val1+""));
+                    aiList.add(ai);
+                    FileListIntensity.add(val1);
+                    Log.e("", " " + nextLine[0] + " " + (val1));
+                    adapter_spec.add(Helper.round(Float.parseFloat(nextLine[0]), 3) + "\n-" + Float.parseFloat(nextLine[1]) + "");
+                } catch (Exception u) {
+
+                    u.printStackTrace();
+                }
+
             }
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "The specified file was not found", Toast.LENGTH_SHORT).show();
         }
-        lv.setAdapter(adapter_name);
+        lv2.setAdapter(adapter_spec);
+        Helper.min = Collections.min(FileListIntensity);
+        Helper.max = Collections.max(FileListIntensity);
+        lv2.setAdapter(adapter_spec);
+        loaded = true;
+        browse.setVisibility(View.GONE);
+        eval.setVisibility(View.VISIBLE);
     }
 
     public String getRealPathFromURI(Uri uri) {
@@ -320,6 +355,27 @@ public class MainActivity extends AppCompatActivity {
         cursor.moveToFirst();
         int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
         return cursor.getString(idx);
+    }
+    public String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    result = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) {
+                result = result.substring(cut + 1);
+            }
+        }
+        return result;
     }
 
 }
